@@ -73,6 +73,7 @@ typedef struct Athena {
         uint64_t numProcessedContentObjects;
         uint64_t numProcessedInterestReturns;
         uint64_t numProcessedControlMessages;
+        uint64_t numProcessedManifests;
     } stats;
 
 } Athena;

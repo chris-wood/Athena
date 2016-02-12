@@ -556,18 +556,6 @@ athenaPIT_AddInterest(AthenaPIT *athenaPIT,
     return result;
 }
 
-
-static PARCCryptoHash*
-_createContentObjectHash(const CCNxContentObject *ccnxContentMessage)
-{
-    // We need to interact with the content message as a WireFormatMessage to get to
-    // the content hash API.
-    CCNxWireFormatMessage *wireFormatMessage = (CCNxWireFormatMessage *) ccnxContentMessage;
-
-    PARCCryptoHash *hash = ccnxWireFormatMessage_CreateContentObjectHash(wireFormatMessage);
-    return hash;
-}
-
 bool
 athenaPIT_RemoveInterest(AthenaPIT *athenaPIT,
                          const CCNxInterest *ccnxInterestMessage,
@@ -611,14 +599,14 @@ athenaPIT_RemoveInterest(AthenaPIT *athenaPIT,
 
 PARCBitVector *
 athenaPIT_Match(AthenaPIT *athenaPIT,
-                const CCNxContentObject *ccnxContentMessage,
+                const CCNxName *name,
+                const PARCBuffer *keyId,
+                const PARCBuffer *contentId,
                 const PARCBitVector *ingressVector)
 {
     //TODO: Add egress check.
 
     PARCBitVector *result = parcBitVector_Create();
-
-    CCNxName *name = ccnxContentObject_GetName(ccnxContentMessage);
 
     // Match based on Name alone
     PARCBuffer *key = _athenaPIT_createCompoundKey(name, NULL);
@@ -641,7 +629,6 @@ athenaPIT_Match(AthenaPIT *athenaPIT,
 
     // Match based on Name & keyId Restriction
     // A content object may or may not have a keyId
-    PARCBuffer *keyId = ccnxContentObject_GetKeyId(ccnxContentMessage);
     if (keyId != NULL) {
         key = _athenaPIT_createCompoundKey(name, keyId);
         entry = (_AthenaPITEntry *) parcHashMap_Get(athenaPIT->entryTable, key);
@@ -660,13 +647,11 @@ athenaPIT_Match(AthenaPIT *athenaPIT,
     }
 
     // Match based on Name & Content Id Restriction
-    PARCCryptoHash *contentId = _createContentObjectHash(ccnxContentMessage);
     // M.S. Nominally, the contentId should not be null as any content message received
     // should be hashable. But because locally generated contentObjects are not currently
     // hashable, we need to support this case.
     if (contentId != NULL) {
-        key = _athenaPIT_createCompoundKey(name, parcCryptoHash_GetDigest(contentId));
-        parcCryptoHash_Release(&contentId);
+        key = _athenaPIT_createCompoundKey(name, contentId);
         entry = (_AthenaPITEntry *) parcHashMap_Get(athenaPIT->entryTable, key);
 
         // We have an entry, set the match vector and remove
